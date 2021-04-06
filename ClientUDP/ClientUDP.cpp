@@ -6,6 +6,7 @@
 
 #pragma comment (lib, "ws2_32.lib")
 
+// Комментарий для dev ветки
 using namespace std;
 
 int result;
