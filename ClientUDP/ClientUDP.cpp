@@ -10,6 +10,7 @@
 using namespace std;
 
 int result;
+int reload = 1;
 
 SOCKET in;
 string message;
@@ -17,41 +18,68 @@ sockaddr_in receiver, sender;
 vector<sockaddr_in> addreses;
 
 
-
 void DrawList() {
+	system("cls");
 	cout << "Servers:\n";
 	int i = 0;
 	for (auto const& addr : addreses) {
 		char ip[256];
 		inet_ntop(AF_INET, &addr.sin_addr, ip, 256);
 		cout << i << ") " << ip << endl;
+		i++;
 	}
 }
 
-void ClientHandler() {
+void RefreshHandler() {
 	char buf[1024];
 	message = "Broadcast work!";
 	int senderLength = sizeof(sender);
+	int sizeSender = sizeof(sender);
+	ZeroMemory(&sender, sizeSender);
+	int run = 1;
 
-	while (true) {
+	while (run) {
+		//if (!reload) continue;
 		ZeroMemory(buf, 1024);
 		ZeroMemory(&sender, senderLength);
 		int recvRes = recvfrom(in, buf, 1024, 0, (sockaddr*)&sender, &senderLength);
 		if (recvRes != SOCKET_ERROR) {
-			char ip[256];
-			system("cls");
-			inet_ntop(AF_INET, &sender.sin_addr, ip, 256);
-			addreses.push_back(sender);
+			if (buf[0] == 'c') {
+				SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+				if (s == INVALID_SOCKET)
+				{
+					return;
+				}
+
+				if (connect(s, (sockaddr*)&sender, sizeSender) == SOCKET_ERROR) {
+					cout << "error";
+					return;
+				}
+
+				run = 0;
+				system("cls");
+				char msg[20];
+				string hui = "Lupa";
+				recv(s, msg, 20, NULL);
+				cout << msg;
+				send(s, hui.c_str(), hui.size(), NULL);
+				return;
+			}
+			else {
+				char ip[256];
+				inet_ntop(AF_INET, &sender.sin_addr, ip, 256);
+				addreses.push_back(sender);
+			
+				DrawList();
+			}
 		}
 	}
 }
 
 
 void RefreshServers() {
-	sendto(in, "r", sizeof(char), 0, (sockaddr*)&receiver, sizeof(receiver));
 	addreses.clear();
-	system("cls");
-	DrawList();
+	sendto(in, "r", sizeof(char), 0, (sockaddr*)&receiver, sizeof(receiver));
 }
 
 void main()
@@ -86,7 +114,7 @@ void main()
 	system("cls");
 	char choice;
 
-	
+	sendIp = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)RefreshHandler, NULL, NULL, NULL);
 	//HANDLE input = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)InputHandler, NULL, NULL, NULL);
 
 	//RefreshServers();
@@ -98,33 +126,12 @@ void main()
 		cin >> choice;
 		if (choice == 'r') {
 			RefreshServers();
-			sendIp = CreateThread(NULL, NULL, (LPTHREAD_START_ROUTINE)ClientHandler, NULL, NULL, NULL);
 		}
 		else {
-			int sizeSender = sizeof(sender);
-			ZeroMemory(&sender, sizeSender);
-
-			if ('0' <= choice && choice <= '9') {
-				//CloseHandle(sendIp);
-				sendto(in, "1", sizeof(char), 0, (sockaddr*)&receiver, sizeof(receiver));
-				recvfrom(in, (char*)&choice, sizeof(char), 0, (sockaddr*)&sender, &sizeSender);
-				SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-				if (s == INVALID_SOCKET)
-				{
-					return;
-				}
-
-				if (connect(s, (sockaddr*)&sender, sizeSender) == SOCKET_ERROR) {
-					cout << "error";
-					return;
-				}
-				
-				char msg[20];
-				string hui = "Lupa";
-				recv(s, msg, 20, NULL);
-				cout << msg;
-				send(s, hui.c_str(), hui.size(), NULL);
-				return;
+			
+			int a = (int)(choice - '0');
+			if (0 <= a && a <= 9 && a <= addreses.size() && addreses.size() > 0) {
+				sendto(in, "1", sizeof(char), 0, (sockaddr*)&addreses[a], sizeof(sockaddr_in));
 			}
 			else {
 				cout << "Иди наводи суету в другой район";
